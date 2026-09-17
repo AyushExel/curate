@@ -1,0 +1,161 @@
+{
+  "rows": 3000,
+  "good": 1274,
+  "stats": {
+    "rows": 3000,
+    "motion": {
+      "mean": 0.0202,
+      "min": 0.00020726953516714275,
+      "p5": 0.0016,
+      "p25": 0.0046,
+      "p50": 0.0118,
+      "p75": 0.0273,
+      "p95": 0.0654,
+      "max": 0.2658822536468506,
+      "nulls": 0
+    },
+    "motion_score": {
+      "mean": 5.8221,
+      "min": 0.0160858258605003,
+      "p5": 0.055,
+      "p25": 0.531,
+      "p50": 2.1384,
+      "p75": 6.1564,
+      "p95": 23.8397,
+      "max": 130.6513671875,
+      "nulls": 0
+    },
+    "cuts": {
+      "mean": 0.034,
+      "min": 0,
+      "p5": 0,
+      "p25": 0,
+      "p50": 0,
+      "p75": 0,
+      "p95": 0,
+      "max": 13,
+      "nulls": 0
+    },
+    "clip": {
+      "mean": 0.3165,
+      "min": 0.1511838734149933,
+      "p5": 0.2512,
+      "p25": 0.2913,
+      "p50": 0.3161,
+      "p75": 0.3421,
+      "p95": 0.3829,
+      "max": 0.45968443155288696,
+      "nulls": 0
+    },
+    "seconds": {
+      "mean": 3.0934,
+      "min": 0.3,
+      "p5": 2.6667,
+      "p25": 2.6667,
+      "p50": 2.6667,
+      "p75": 2.6667,
+      "p95": 4.425,
+      "max": 42.96666666666667,
+      "nulls": 0
+    },
+    "is_dup": {
+      "true": 729,
+      "frac": 0.243,
+      "nulls": 0
+    }
+  },
+  "spearman_motion_vs_openvid": 0.6796472421830269,
+  "timings": {
+    "motion": {
+      "signal": "motion",
+      "rows": 3000,
+      "seconds": 55.41,
+      "engine": "geneva"
+    },
+    "cuts": {
+      "signal": "scene_cuts",
+      "rows": 3000,
+      "seconds": 64.91,
+      "engine": "geneva"
+    },
+    "clip": {
+      "signal": "clip_score",
+      "rows": 3000,
+      "seconds": 113.04,
+      "engine": "geneva"
+    },
+    "is_dup": {
+      "op": "dedup",
+      "rows": 3000,
+      "dups": 729,
+      "clusters": 27
+    }
+  },
+  "recipe": {
+    "uri": "/ephemeral/curate/data/openvid.lance",
+    "version": 49,
+    "where": "(NOT is_dup) AND (cuts = 0 AND motion >= 0.01 AND clip >= 0.25)",
+    "steps": [
+      {
+        "op": "dedup",
+        "name": "is_dup"
+      },
+      {
+        "op": "filter",
+        "where": "NOT is_dup"
+      },
+      {
+        "op": "filter",
+        "where": "cuts = 0 AND motion >= 0.01 AND clip >= 0.25"
+      }
+    ],
+    "columns": {
+      "motion": {
+        "signal": "motion",
+        "inputs": [
+          "video_blob"
+        ],
+        "n_frames": 16,
+        "rows": 3000,
+        "seconds": 55.41,
+        "engine": "geneva",
+        "where": null
+      },
+      "cuts": {
+        "signal": "scene_cuts",
+        "inputs": [
+          "video_blob"
+        ],
+        "n_frames": 32,
+        "threshold": 0.5,
+        "rows": 3000,
+        "seconds": 64.91,
+        "engine": "geneva",
+        "where": null
+      },
+      "clip": {
+        "signal": "clip_score",
+        "inputs": [
+          "video_blob",
+          "caption"
+        ],
+        "model_name": "ViT-B-32",
+        "pretrained": "laion2b_s34b_b79k",
+        "n_frames": 4,
+        "rows": 3000,
+        "seconds": 113.04,
+        "engine": "geneva",
+        "where": null
+      },
+      "is_dup": {
+        "op": "dedup",
+        "column": "embedding",
+        "where": null,
+        "rows": 3000,
+        "dups": 729,
+        "clusters": 27,
+        "threshold": 0.95
+      }
+    }
+  }
+}

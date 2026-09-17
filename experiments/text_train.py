@@ -13,6 +13,7 @@ import sys
 import time
 import zlib
 
+import numpy as np
 import pyarrow as pa
 import pyarrow.compute as pc
 import torch
@@ -54,16 +55,17 @@ def prepare():
 
 
 def batches(view, shuffle, seed=0):
-    def to_rows(batch: pa.RecordBatch):
-        out = []
-        for ids in batch.column("input_ids").to_pylist():
-            x = torch.full((SEQ,), PAD, dtype=torch.long)
-            x[: len(ids)] = torch.tensor(ids[:SEQ])
-            out.append(x)
-        return out
-
-    stream = view.torch(columns=["input_ids"], shuffle=shuffle, shuffle_seed=seed, transform=to_rows, read_batch_size=BATCH)
-    return torch.utils.data.DataLoader(stream, batch_size=BATCH, num_workers=0)
+    """Padded [BATCH, SEQ] blocks. The 150k-doc subsets fit in memory, so this reads the
+    view once and shuffles with numpy instead of going through the streaming loader
+    (lancedb 0.38.0's permutation builder panics on this table, see RESULTS.md)."""
+    ids = view.to_table(["input_ids"]).column("input_ids").to_pylist()
+    order = np.random.default_rng(seed).permutation(len(ids)) if shuffle else np.arange(len(ids))
+    for lo in range(0, len(order) - BATCH + 1, BATCH):
+        x = torch.full((BATCH, SEQ), PAD, dtype=torch.long)
+        for r, i in enumerate(order[lo : lo + BATCH]):
+            row = ids[i][:SEQ]
+            x[r, : len(row)] = torch.tensor(row)
+        yield x
 
 
 def loss_fn(model, x):

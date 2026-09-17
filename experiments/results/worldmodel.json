@@ -1,0 +1,125 @@
+{
+  "frames": 200000,
+  "episodes": 996,
+  "good_frames": 189800,
+  "similarity_quantiles": {
+    "q": [
+      0.05,
+      0.25,
+      0.5,
+      0.75,
+      0.95
+    ],
+    "consecutive": [
+      0.9633,
+      0.9769,
+      0.9836,
+      0.9889,
+      0.9941
+    ],
+    "random_pair": [
+      0.8742,
+      0.9012,
+      0.9184,
+      0.9345,
+      0.9547
+    ],
+    "nearest_neighbour": [
+      0.9829,
+      0.9872,
+      0.99,
+      0.9926,
+      0.9956
+    ]
+  },
+  "dedup_threshold": 0.995,
+  "episode_stats": {
+    "groups": 996,
+    "ep_len": {
+      "mean": 200.8032,
+      "min": 5,
+      "p5": 201,
+      "p25": 201,
+      "p50": 201,
+      "p75": 201,
+      "p95": 201,
+      "max": 201,
+      "nulls": 0
+    },
+    "jerk": {
+      "mean": NaN,
+      "min": 0.5309900045394897,
+      "p5": 0.531,
+      "p25": 0.531,
+      "p50": 0.531,
+      "p75": 0.531,
+      "p95": 0.531,
+      "max": 0.5309900045394897,
+      "nulls": 0
+    },
+    "idle": {
+      "mean": 0.0,
+      "min": 0.0,
+      "p5": 0.0,
+      "p25": 0.0,
+      "p50": 0.0,
+      "p75": 0.0,
+      "p95": 0.0,
+      "max": 0.004999999888241291,
+      "nulls": 0
+    }
+  },
+  "frame_stats": {
+    "rows": 200000,
+    "is_dup": {
+      "true": 9226,
+      "frac": 0.0461,
+      "nulls": 0
+    }
+  },
+  "timings": {
+    "is_dup": {
+      "op": "dedup",
+      "rows": 200000,
+      "dups": 9226,
+      "clusters": 223
+    }
+  },
+  "recipe": {
+    "uri": "/ephemeral/curate/data/lewm.lance",
+    "version": 13,
+    "where": "(NOT is_dup) AND (idle <= 0.0)",
+    "steps": [
+      {
+        "op": "drop",
+        "columns": [
+          "is_dup",
+          "cluster"
+        ]
+      },
+      {
+        "op": "dedup",
+        "name": "is_dup"
+      },
+      {
+        "op": "filter",
+        "where": "NOT is_dup"
+      },
+      {
+        "op": "filter",
+        "where": "idle <= 0.0"
+      }
+    ],
+    "columns": {
+      "is_dup": {
+        "op": "dedup",
+        "column": "emb",
+        "where": null,
+        "rows": 200000,
+        "dups": 9226,
+        "clusters": 223,
+        "threshold": 0.995
+      }
+    }
+  }
+}

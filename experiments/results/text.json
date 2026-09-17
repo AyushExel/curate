@@ -1,0 +1,183 @@
+{
+  "rows": 1000000,
+  "english": 999571,
+  "clean": 980546,
+  "stats": {
+    "rows": 1000000,
+    "n_words": {
+      "mean": 785.4253,
+      "min": 28,
+      "p5": 113,
+      "p25": 241,
+      "p50": 446,
+      "p75": 794,
+      "p95": 2416,
+      "max": 96720,
+      "nulls": 0
+    },
+    "quality": {
+      "mean": 3.0131,
+      "min": 2.4765625,
+      "p5": 2.5371,
+      "p25": 2.6836,
+      "p50": 2.918,
+      "p75": 3.2617,
+      "p95": 3.8008,
+      "max": 5.0234375,
+      "nulls": 429
+    },
+    "score": {
+      "mean": 3.0181,
+      "min": 2.515625,
+      "p5": 2.5469,
+      "p25": 2.6875,
+      "p50": 2.9219,
+      "p75": 3.2656,
+      "p95": 3.8125,
+      "max": 5.03125,
+      "nulls": 0
+    },
+    "is_dup": {
+      "true": 8,
+      "frac": 0.0,
+      "nulls": 0
+    },
+    "is_near_dup": {
+      "true": 17599,
+      "frac": 0.0176,
+      "nulls": 8
+    },
+    "contaminated": {
+      "true": 0,
+      "frac": 0,
+      "nulls": 0
+    }
+  },
+  "lang_top": {
+    "eng_Latn": 999571,
+    "und": 240,
+    "yue_Hant": 142,
+    "spa_Latn": 9,
+    "fra_Latn": 7,
+    "krc_Cyrl": 5,
+    "kor_Hang": 5,
+    "por_Latn": 4
+  },
+  "spearman_quality_vs_shipped_score": 0.9995271568264718,
+  "timings": [
+    {
+      "op": "signal",
+      "name": "n_words",
+      "rows": 1000000,
+      "seconds": 21.88,
+      "engine": "geneva"
+    },
+    {
+      "op": "signal",
+      "name": "lang",
+      "rows": 1000000,
+      "seconds": 92.35,
+      "engine": "geneva"
+    },
+    {
+      "op": "signal",
+      "name": "contaminated",
+      "rows": 1000000,
+      "seconds": 67.91,
+      "engine": "geneva"
+    },
+    {
+      "op": "dedup",
+      "name": "is_dup",
+      "rows": 1000000,
+      "dups": 8
+    },
+    {
+      "op": "filter"
+    },
+    {
+      "op": "dedup",
+      "name": "is_near_dup",
+      "rows": 999992,
+      "dups": 17599,
+      "clusters": 499
+    },
+    {
+      "op": "filter"
+    },
+    {
+      "op": "filter"
+    }
+  ],
+  "recipe": {
+    "uri": "/ephemeral/curate/data/fineweb.lance",
+    "version": 23,
+    "where": "((NOT is_dup) AND (NOT is_near_dup)) AND (lang = 'eng_Latn' AND quality >= 2.5 AND NOT contaminated)",
+    "steps": [
+      {
+        "op": "signal",
+        "name": "n_words",
+        "signal": "length",
+        "inputs": [
+          "text"
+        ],
+        "rows": 1000000,
+        "seconds": 21.88,
+        "engine": "geneva"
+      },
+      {
+        "op": "signal",
+        "name": "lang",
+        "signal": "language",
+        "inputs": [
+          "text"
+        ],
+        "min_confidence": 0.5,
+        "rows": 1000000,
+        "seconds": 92.35,
+        "engine": "geneva"
+      },
+      {
+        "op": "signal",
+        "name": "contaminated",
+        "signal": "contaminated",
+        "inputs": [
+          "text"
+        ],
+        "ngram": 13,
+        "n_against": 1319,
+        "rows": 1000000,
+        "seconds": 67.91,
+        "engine": "geneva"
+      },
+      {
+        "op": "dedup",
+        "column": "text",
+        "name": "is_dup",
+        "rows": 1000000,
+        "dups": 8
+      },
+      {
+        "op": "filter",
+        "where": "NOT is_dup"
+      },
+      {
+        "op": "dedup",
+        "column": "text_embedding",
+        "name": "is_near_dup",
+        "rows": 999992,
+        "dups": 17599,
+        "clusters": 499,
+        "threshold": 0.95
+      },
+      {
+        "op": "filter",
+        "where": "NOT is_near_dup"
+      },
+      {
+        "op": "filter",
+        "where": "lang = 'eng_Latn' AND quality >= 2.5 AND NOT contaminated"
+      }
+    ]
+  }
+}

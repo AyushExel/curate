@@ -1,0 +1,54 @@
+{
+  "rows": [
+    {
+      "op": "signal",
+      "name": "lang_local",
+      "signal": "language",
+      "inputs": [
+        "text"
+      ],
+      "min_confidence": 0.5,
+      "rows": 100000,
+      "seconds": 95.99,
+      "engine": "local"
+    },
+    {
+      "op": "signal",
+      "name": "lang_geneva",
+      "signal": "language",
+      "inputs": [
+        "text"
+      ],
+      "min_confidence": 0.5,
+      "rows": 100000,
+      "seconds": 26.04,
+      "engine": "geneva"
+    },
+    {
+      "op": "signal",
+      "name": "q_local",
+      "signal": "quality",
+      "inputs": [
+        "text"
+      ],
+      "model_name": "HuggingFaceFW/fineweb-edu-classifier",
+      "max_length": 512,
+      "rows": 100000,
+      "seconds": 126.02,
+      "engine": "local"
+    },
+    {
+      "op": "signal",
+      "name": "q_geneva",
+      "signal": "quality",
+      "inputs": [
+        "text"
+      ],
+      "model_name": "HuggingFaceFW/fineweb-edu-classifier",
+      "max_length": 512,
+      "rows": 100000,
+      "seconds": 98.75,
+      "engine": "geneva"
+    }
+  ]
+}

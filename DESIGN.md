@@ -128,7 +128,7 @@ Signals run on one of two engines with identical semantics:
 curate.config.engine = "geneva"        # or per call: ds.signal(..., engine="geneva", concurrency=8)
 ```
 
-Default is `auto`: Geneva when importable, otherwise local. The benchmark section below decides whether that default is right.
+Default is `auto`: Geneva when importable, otherwise local. Measured (RESULTS.md): on 100k docs Geneva's 20 CPU workers were 3.7x a single process for fastText language id (10x at 1M rows), while two GPU workers were only 1.3x one local GPU for the BERT quality classifier, because that signal is bound by tokenization on the worker's CPU, not by the GPU. The default stands; the ceiling is set by the signal.
 
 ## Built-in signal library
 
@@ -204,6 +204,8 @@ Things the API had to learn from real data, before the numbers:
 - **A half-computed column is the normal case, not an error.** A GPU job that dies at fragment 6 of 8 leaves a column that exists and is mostly null. `signal()` treats that as "resume", the way Geneva's own backfill does.
 - **Re-running a script must be safe.** `tag()` moves an existing tag instead of failing.
 - **Robot datasets need per-episode signals, and the frame table is the right place to put them.** Broadcasting 50 episode values onto 38k frames cost nothing and kept every downstream filter a plain SQL string.
+- **Video signals are decode-bound, and every signal decodes again.** Three signals on 3k clips meant three decodes per clip. A `frames` signal (a handful of thumbnails per clip, stored as a blob column) that later signals read instead of the mp4 fits the model with no new concept: it is just a column other signals take as input.
+- **A GPU signal has to saturate one GPU before a second one helps.** The edu classifier ran at 1.8k docs/s on two H100s; the fix is inside the signal (length-sorted batches, parallel tokenization), not in the engine.
 - **Flags you'd expect to exist may not.** pusht's `next_success` is never true in the current release; `peak("next_reward")` per episode stood in. A signal library is partly a set of stand-ins for missing labels.
 
 ## Naming
@@ -213,7 +215,9 @@ Things the API had to learn from real data, before the numbers:
 ## Open questions for the review
 
 1. `signal()` vs `compute()` vs `annotate()` for the verb that adds a column.
-2. Should `dedup` and `sample` write columns (inspectable, SQL-filterable, what the design says) or return row-id sets (no table writes, but not usable by the streaming loader)?
-3. Should the default engine be Geneva when importable? Depends on the startup overhead measured below.
-4. Grouped signals broadcast the per-episode value to every frame. Simple, but for a 10-frame value on a 1M-frame table it is 1M cells. Alternative: a sibling episodes table with a join. The pusht conversion already ships both an `episodes` and a `frames` table, which suggests the sibling table is the natural unit.
-5. How much of the signal library belongs in this package versus being examples users copy.
+2. `dedup` and `sample` write columns. The runs made this feel right (every training set in the ablation was a bool column and both eval sets were a `where`), but the table gains a column per experiment. Is that acceptable, or should experiment columns live under a namespace / get garbage-collected with the tag?
+3. Engine default: measured, `auto` (Geneva when importable) stands. The open part is whether `local` should use all GPUs of one box itself (DataParallel over batches) so a laptop-to-workstation user never needs Ray.
+4. Grouped signals broadcast the per-episode value to every frame. It cost nothing at 200k frames. At 100M frames a sibling episodes table with a join is the alternative; the pusht conversion already ships both tables.
+5. How much of the signal library belongs in this package versus being examples users copy. The runs suggest the library's real job is stand-ins and sanity checks (peak reward when success is missing, recomputed quality vs shipped score), which argues for a small core plus a cookbook.
+6. Thresholds. Every semantic dedup run needed a look at the similarity distribution first. Should `dedup()` refuse to run without one (print it, or take `threshold="p99"` and pick it from the nearest-neighbour distribution)?
+7. Provenance now lives in Lance field metadata per column. Should the `steps` lineage on a view go away entirely in favour of `(version, where)` plus column provenance?

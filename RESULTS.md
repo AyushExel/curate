@@ -7,11 +7,11 @@ The same four verbs, run on one real dataset per domain. All runs on one brev bo
 | Domain | Dataset | Rows | Signals added | Kept after curation | Downstream / sanity check |
 |---|---|---|---|---|---|
 | LLM pretraining | fineweb-edu | 1,000,000 docs | n_words, lang, quality (GPU), contaminated, is_dup, is_near_dup | 980,546 (98.1%) | recomputed `quality` matches the shipped `score`, Spearman 1.000; small-GPT ablation below |
-| Image-text | laion | 100,000 pairs | res, aesthetic (GPU), clip (GPU), is_dup | see below | our `clip_score` vs LAION `similarity` |
-| Video gen | openvid | 3,000 clips | motion, cuts, clip (GPU), is_dup | see below | our `motion` vs OpenVid `motion_score` |
+| Image-text | laion | 100,000 pairs | res, aesthetic (GPU), clip (GPU), is_dup | 21,625 (21.6%) | our `clip_score` vs LAION `similarity`, Spearman 0.47 (different CLIP checkpoints) |
+| Video gen | openvid | 3,000 clips | motion, cuts, clip (GPU), is_dup | 1,274 (42.5%) | our `motion` vs OpenVid `motion_score`, Spearman 0.68 |
 | Robot policy | koch pick-place | 37,972 frames / 50 eps | ep_len, jerk, idle, path | 42/50 eps, 32,777 frames | |
 | Robot policy | pusht | 25,650 frames / 206 eps | ep_len, jerk, idle, path, max_reward | 135/206 eps, 17,606 frames | `next_success` is never true in the release; peak reward stood in |
-| World model | LeWorldModel cube | 200,000 frames / 996 eps | ep_len, jerk, idle, emb (GPU), is_dup | see below | similarity distribution before thresholding |
+| World model | LeWorldModel cube | 200,000 frames / 996 eps | ep_len, jerk, idle, emb (GPU), is_dup | 189,800 frames (94.9%) | 0.97 threshold flagged 99.8%; distribution-chosen 0.995 flagged 4.6% |
 
 ## Text: fineweb-edu, 1M docs
 
@@ -44,7 +44,16 @@ Design consequence: the `auto` engine default is right for CPU signals and for t
 
 ### Downstream: same small GPT, top-quartile quality vs random
 
-Pending (see `experiments/text_train.py`).
+Setup (`experiments/text_train.py`): GPT-2 tokenizer (a `text.tokenize` signal, 1M docs, Geneva), a deterministic 2% held-out split as a bool signal (`crc32(id) % 50 == 0`), then two 150k-doc training sets as `sample()` columns: `train_random` from all training docs, `train_clean` from `quality >= 3.25 AND eng_Latn AND no dups` (the top quartile of the edu score, 245k docs). Same model (8 layers, 512 wide, 35M params), same 3,000 steps of 32 x 1024, same 98M tokens, same seed, one H100 each, 5 minutes per run.
+
+| Training set | val_all (2% of everything) | val_clean (held-out top quartile) |
+|---|---|---|
+| `train_random` | **6.744** | 6.700 |
+| `train_clean` | 6.778 | **6.670** |
+
+Training on the quality-filtered quartile lowers loss on high-quality held-out text (-0.030) and raises it on the raw distribution (+0.034). That is the textbook shape of a quality filter, at a size (35M params, 98M tokens, one seed) where it is a directional check, not a claim. The point of the exercise is the workflow: every training set is a bool column, every eval set is a `where`, and both runs read the same table at the same version.
+
+Loader caveat: `Dataset.torch()` (lancedb 0.38.0 `StreamingDataset`) panics in `dataloader/permutation/builder.rs:230` (`SchemaError("target schema is not superset of current schema ...")`) on this fineweb table and on any table exported from it, with or without a filter, with or without shuffle. It works on laion, lewm, and on fresh tables with string, list<int32>, fixed-size-list and nullable float columns, so the trigger is not obvious; the fineweb table (its exported 150k-row, 4-column copy is a repro) needs a look from the lancedb side. The ablation used a 12-line in-memory loader instead; the subsets fit in RAM.
 
 ## Image-text: laion, 100k pairs (inline JPEG, ViT-L/14 embedding shipped)
 
