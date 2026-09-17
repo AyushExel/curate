@@ -32,6 +32,7 @@ That observation is the whole design. Curation reduces to four verbs, and each m
 | **filter** | keep rows that satisfy a rule | SQL `where` clause, lazy |
 | **select** | dedup, sample, stratify | another column (`is_dup`, `sample_1m`) plus a filter |
 | **tag** | freeze a dataset for training | Lance table version + tag, recipe in tag metadata, per-column provenance in field metadata |
+| **loop** | propose a recipe, train, score, repeat | `Loop`: each trial is a tag; the tree is the table's tag list |
 
 Nothing is ever copied. A curated dataset is `(table uri, version, where)`. That triple is the recipe, it is fully reproducible, and it is small enough to paste into a paper. How each column was made (which signal, which model, which rows, how long) lives in that column's Lance field metadata, so the table carries its own provenance and any view, any client, any later session can read it.
 
@@ -129,6 +130,23 @@ curate.config.engine = "geneva"        # or per call: ds.signal(..., engine="gen
 ```
 
 Default is `auto`: Geneva when importable, otherwise local. Measured (RESULTS.md): on 100k docs Geneva's 20 CPU workers were 3.7x a single process for fastText language id (10x at 1M rows), while two GPU workers were only 1.3x one local GPU for the BERT quality classifier, because that signal is bound by tokenization on the worker's CPU, not by the GPU. The default stands; the ceiling is set by the signal.
+
+### Auto-curation: the research loop
+
+DataSmith's insight is that curation is a research loop, not a pipeline: propose a data intervention, train, evaluate, diagnose, propose again. Everything above was built so that loop is short to write:
+
+```python
+def train(view, name):                 # your trainer: sample from the view, train, return metrics
+    sub = view.sample(150_000, name=f"{name}_train")
+    ...
+    return {"score": val_loss, ...}     # lower is better
+
+loop = curate.Loop(ds, train=train, budget=8)   # proposer defaults to Claude
+loop.run()
+loop.tree()                            # every trial, best first
+```
+
+Each trial is a `where` clause. The proposer (Claude by default, or any callable) sees the column stats and the history of `(where, score)` pairs and returns the next `where`. The loop filters, calls `train`, and tags the view as `trial-k` with the recipe and the metrics in the tag metadata. That makes the experiment tree a property of the table: it survives the process, a second `Loop` on the same table starts with the full history, and `curate.load(uri, tag="trial-3")` hands the winning training set to a real run. There is no separate experiment database because Lance tags already are one.
 
 ## Built-in signal library
 
