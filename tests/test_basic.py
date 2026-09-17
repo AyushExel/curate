@@ -84,8 +84,8 @@ def test_loop_tree_in_tags(tmp_path):
     curate.Loop(ds, propose=curate.grid(["TRUE"]), budget=1, **kw).run()
     tree = curate.Loop(ds, propose=curate.grid(["TRUE", "text LIKE '%cats%'", "episode = 0"]), budget=5, **kw).run()
     names = [t.name for t in tree]
-    assert sorted(names) == ["trial-0", "trial-1", "trial-2"]  # TRUE was not repeated, grid ran out
+    assert sorted(names) == ["trial_0", "trial_1", "trial_2"]  # TRUE was not repeated, grid ran out
     assert tree[0].score <= tree[-1].score
-    again = curate.load(str(tmp_path / "t.lance"), tag="trial-1")
+    again = curate.load(str(tmp_path / "t.lance"), tag="trial_1")
     assert "cats" in again.where
-    assert "trial-1_train" in ds.columns
+    assert "trial_1_train" in ds.columns

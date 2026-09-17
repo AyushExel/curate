@@ -64,7 +64,7 @@ class Loop:
             if not proposal:
                 log("loop: proposer stopped")
                 break
-            name = f"{self.prefix}-{len(history)}"
+            name = f"{self.prefix}_{len(history)}"
             view = self.ds.filter(proposal["where"])
             rows = len(view)
             log(f"loop {name}: {rows:,} rows <- {proposal['where']}  ({proposal.get('rationale', '')})")

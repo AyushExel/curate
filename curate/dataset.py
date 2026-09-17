@@ -109,6 +109,8 @@ class Dataset:
     def sample(self, n: int, seed=0, by: str | None = None, name: str | None = None) -> "Dataset":
         """Random sample (or equal-per-group when ``by`` is set) as a bool column."""
         name = name or f"sample_{n}"
+        if not name.isidentifier():
+            raise ValueError(f"sample name {name!r} must be a plain identifier (it becomes a column used in SQL)")
         if name in self.columns:
             raise ValueError(f"column {name!r} exists; pass name=")
         t = self._ds.scanner(columns=[by] if by else [], filter=self.where, with_row_address=True).to_table()

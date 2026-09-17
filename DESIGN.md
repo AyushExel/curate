@@ -146,7 +146,7 @@ loop.run()
 loop.tree()                            # every trial, best first
 ```
 
-Each trial is a `where` clause. The proposer (Claude by default, or any callable) sees the column stats and the history of `(where, score)` pairs and returns the next `where`. The loop filters, calls `train`, and tags the view as `trial-k` with the recipe and the metrics in the tag metadata. That makes the experiment tree a property of the table: it survives the process, a second `Loop` on the same table starts with the full history, and `curate.load(uri, tag="trial-3")` hands the winning training set to a real run. There is no separate experiment database because Lance tags already are one.
+Each trial is a `where` clause. The proposer (Claude by default, or any callable) sees the column stats and the history of `(where, score)` pairs and returns the next `where`. The loop filters, calls `train`, and tags the view as `trial_k` with the recipe and the metrics in the tag metadata. That makes the experiment tree a property of the table: it survives the process, a second `Loop` on the same table starts with the full history, and `curate.load(uri, tag="trial_3")` hands the winning training set to a real run. There is no separate experiment database because Lance tags already are one.
 
 ## Built-in signal library
 

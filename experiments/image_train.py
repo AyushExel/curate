@@ -9,6 +9,7 @@ import io
 import math
 import sys
 import time
+from concurrent.futures import ThreadPoolExecutor
 
 import numpy as np
 import open_clip
@@ -19,6 +20,8 @@ import curate
 from common import DATA, save
 
 ImageFile.LOAD_TRUNCATED_IMAGES = True
+pool = ThreadPoolExecutor(16)
+torch.set_num_threads(1)  # the GPU does the work; CPU threads only decode
 PAIRS, BATCH, EPOCHS, LR = 20_000, 128, 2, 1e-5
 CURATED = "NOT is_dup AND clip >= 0.28 AND aesthetic >= 4.5 AND res >= 200 AND NSFW = 'UNLIKELY'"
 MODEL, PRETRAINED = "ViT-B-32", "laion2b_s34b_b79k"
@@ -45,9 +48,10 @@ def retrieval(model, pre, tok, images, captions):
     model.eval()
     ie, te = [], []
     for lo in range(0, len(images), 256):
-        x = torch.stack([pre(pil(b)) for b in images[lo : lo + 256]]).cuda().half()
-        ie.append(torch.nn.functional.normalize(model.encode_image(x).float(), dim=1))
-        te.append(torch.nn.functional.normalize(model.encode_text(tok(captions[lo : lo + 256]).cuda()).float(), dim=1))
+        x = torch.stack(list(pool.map(lambda b: pre(pil(b)), images[lo : lo + 256]))).cuda()
+        with torch.autocast("cuda", dtype=torch.bfloat16):
+            ie.append(torch.nn.functional.normalize(model.encode_image(x).float(), dim=1))
+            te.append(torch.nn.functional.normalize(model.encode_text(tok(captions[lo : lo + 256]).cuda()).float(), dim=1))
     ie, te = torch.cat(ie), torch.cat(te)
     sims = te @ ie.T  # text -> image
     gt = torch.arange(len(ie), device=sims.device)
@@ -62,23 +66,23 @@ def retrieval(model, pre, tok, images, captions):
 
 def finetune(images, captions, coco, seed=0):
     torch.manual_seed(seed)
-    model, _, pre = open_clip.create_model_and_transforms(MODEL, pretrained=PRETRAINED, precision="fp16", device="cuda")
+    model, _, pre = open_clip.create_model_and_transforms(MODEL, pretrained=PRETRAINED, device="cuda")  # fp32 weights, bf16 autocast
     tok = open_clip.get_tokenizer(MODEL)
     before = retrieval(model, pre, tok, *coco)
     params = [p for p in model.parameters() if p.requires_grad]
     opt = torch.optim.AdamW(params, lr=LR, weight_decay=0.1, eps=1e-6)
     steps = EPOCHS * (len(images) // BATCH)
     sched = torch.optim.lr_scheduler.LambdaLR(opt, lambda s: min(1, s / 50) * 0.5 * (1 + math.cos(math.pi * s / steps)))
-    scaler = torch.amp.GradScaler()
     rng, step, t0 = np.random.default_rng(seed), 0, time.time()
     for _ in range(EPOCHS):
         order = rng.permutation(len(images))
         for lo in range(0, len(images) - BATCH + 1, BATCH):
             idx = order[lo : lo + BATCH]
-            x = torch.stack([pre(pil(images[i])) for i in idx]).cuda().half()
+            x = torch.stack(list(pool.map(lambda i: pre(pil(images[i])), idx))).cuda()
             y = tok([captions[i] for i in idx]).cuda()
-            ie = torch.nn.functional.normalize(model.encode_image(x).float(), dim=1)
-            te = torch.nn.functional.normalize(model.encode_text(y).float(), dim=1)
+            with torch.autocast("cuda", dtype=torch.bfloat16):
+                ie = torch.nn.functional.normalize(model.encode_image(x).float(), dim=1)
+                te = torch.nn.functional.normalize(model.encode_text(y).float(), dim=1)
             logits = model.logit_scale.exp().float() * ie @ te.T
             labels = torch.arange(BATCH, device="cuda")
             loss = (torch.nn.functional.cross_entropy(logits, labels) + torch.nn.functional.cross_entropy(logits.T, labels)) / 2
