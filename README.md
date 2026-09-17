@@ -141,3 +141,16 @@ Signals are deliberately boring and well known. The value is not any one signal,
 - Not training. `torch()` hands off to the existing streaming loader and stops.
 - Not an agent. But the surface is designed so an agent can drive it: every verb is one call, every result is a recipe dict, `stats()` returns JSON, and the experiment tree DataSmith describes is just a set of tags on one table. An open DataSmith-style loop is the obvious thing to build on top.
 
+
+## In this repo
+
+- [DESIGN.md](DESIGN.md): the long-form design, the engine story, lessons from the runs, open questions for review.
+- [RESULTS.md](RESULTS.md): the same four verbs run on fineweb-edu, laion, openvid, koch/pusht and LeWorldModel on 2x H100, with timings, a small-GPT quality ablation, and one lancedb loader bug found on the way.
+- `curate/`: the minimal implementation (~1,000 lines). `experiments/`: the scripts and JSON behind the numbers. `tests/`: CPU-only checks.
+
+```bash
+pip install -e ".[all]"        # or [text], [image], [video], [geneva]
+python -m pytest tests
+```
+
+This is a design study, not a product. The name is a placeholder.

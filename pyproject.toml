@@ -1,0 +1,20 @@
+[project]
+name = "curate"
+version = "0.0.1"
+description = "Data curation as columns and filters on one Lance table"
+requires-python = ">=3.10"
+dependencies = ["pylance>=0.30", "lancedb>=0.38", "pyarrow", "numpy"]
+
+[project.optional-dependencies]
+text = ["fasttext-wheel", "transformers", "sentence-transformers", "huggingface_hub", "torch"]
+image = ["open_clip_torch", "pillow", "torch"]
+video = ["av", "open_clip_torch", "pillow", "torch"]
+geneva = ["geneva"]
+all = ["curate[text,image,video,geneva]"]
+
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["curate*"]
