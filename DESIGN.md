@@ -224,6 +224,9 @@ Things the API had to learn from real data, before the numbers:
 - **Robot datasets need per-episode signals, and the frame table is the right place to put them.** Broadcasting 50 episode values onto 38k frames cost nothing and kept every downstream filter a plain SQL string.
 - **Video signals are decode-bound, and every signal decodes again.** Three signals on 3k clips meant three decodes per clip. A `frames` signal (a handful of thumbnails per clip, stored as a blob column) that later signals read instead of the mp4 fits the model with no new concept: it is just a column other signals take as input.
 - **A GPU signal has to saturate one GPU before a second one helps.** The edu classifier ran at 1.8k docs/s on two H100s; the fix is inside the signal (length-sorted batches, parallel tokenization), not in the engine.
+- **One seed is not an ablation.** Seed-to-seed noise on identical data (0.067 nats) was twice the effect I first reported (0.030). Paired seeds and a bottom-quartile arm turned it into a result: top < random < bottom on the target eval at both seeds.
+- **A curation recipe is a hypothesis.** My hand-picked image recipe (CLIP score, aesthetic, resolution) lost to random on COCO retrieval at both seeds. The loop then showed why: filtering by the trained model's own CLIP score hurts monotonically. Guessing recipes is what the loop replaces.
+- **The loop optimizes what the trainer rewards.** On text it found a length lever that is partly the padded loader's inefficiency. Make the trainer honest (pack sequences, fixed token budgets) before trusting the tree.
 - **Flags you'd expect to exist may not.** pusht's `next_success` is never true in the current release; `peak("next_reward")` per episode stood in. A signal library is partly a set of stand-ins for missing labels.
 
 ## Naming

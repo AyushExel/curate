@@ -1,0 +1,56 @@
+{
+  "random_s0": {
+    "where": "TRUE",
+    "score": 6.7136,
+    "val_all": 6.7638,
+    "val_top": 6.7136,
+    "train_rows": 150000,
+    "seconds": 325,
+    "seed": 0
+  },
+  "random_s1": {
+    "where": "TRUE",
+    "score": 6.647,
+    "val_all": 6.7021,
+    "val_top": 6.647,
+    "train_rows": 150000,
+    "seconds": 325,
+    "seed": 1
+  },
+  "top_s0": {
+    "where": "quality >= 3.25 AND lang = 'eng_Latn' AND NOT is_dup AND NOT is_near_dup",
+    "score": 6.6482,
+    "val_all": 6.7679,
+    "val_top": 6.6482,
+    "train_rows": 150000,
+    "seconds": 324,
+    "seed": 0
+  },
+  "top_s1": {
+    "where": "quality >= 3.25 AND lang = 'eng_Latn' AND NOT is_dup AND NOT is_near_dup",
+    "score": 6.5981,
+    "val_all": 6.7269,
+    "val_top": 6.5981,
+    "train_rows": 150000,
+    "seconds": 323,
+    "seed": 1
+  },
+  "bottom_s0": {
+    "where": "quality < 2.68 AND lang = 'eng_Latn' AND NOT is_dup AND NOT is_near_dup",
+    "score": 6.7617,
+    "val_all": 6.7637,
+    "val_top": 6.7617,
+    "train_rows": 150000,
+    "seconds": 322,
+    "seed": 0
+  },
+  "bottom_s1": {
+    "where": "quality < 2.68 AND lang = 'eng_Latn' AND NOT is_dup AND NOT is_near_dup",
+    "score": 6.7404,
+    "val_all": 6.7449,
+    "val_top": 6.7404,
+    "train_rows": 150000,
+    "seconds": 323,
+    "seed": 1
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "pairs": 20000,
+  "epochs": 2,
+  "lr": 1e-05,
+  "curated_where": "NOT is_dup AND clip >= 0.28 AND aesthetic >= 4.5 AND res >= 200 AND NSFW = 'UNLIKELY'",
+  "curated_pool": 43976,
+  "runs": {
+    "random_s1": {
+      "t2i_r1": 34.4,
+      "t2i_r5": 60.36,
+      "i2t_r1": 37.16,
+      "i2t_r5": 64.28
+    },
+    "curated_s1": {
+      "t2i_r1": 34.2,
+      "t2i_r5": 60.34,
+      "i2t_r1": 36.08,
+      "i2t_r5": 62.66
+    }
+  },
+  "baseline": {
+    "t2i_r1": 36.96,
+    "t2i_r5": 62.58,
+    "i2t_r1": 37.52,
+    "i2t_r5": 64.7
+  }
+}

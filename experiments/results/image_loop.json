@@ -1,0 +1,101 @@
+{
+  "budget": 6,
+  "tree": [
+    {
+      "name": "img_2",
+      "where": "is_dup = false",
+      "score": 34.98,
+      "metrics": {
+        "score": 34.98,
+        "t2i_r1": 34.98,
+        "t2i_r5": 60.16,
+        "i2t_r1": 36.26,
+        "i2t_r5": 63.96,
+        "pretrained_t2i_r1": 36.96,
+        "train_rows": 20000
+      },
+      "rationale": "Since the reported metrics are recall@k (objective says maximize) and the CLIP-median filter lowered every recall, test the mildest standard signal alone \u2014 drop near-duplicates (~84.5k rows) \u2014 to isolate whether dedup helps without the diversity loss that aggressive CLIP filtering caused.",
+      "rows": 84544
+    },
+    {
+      "name": "img_0",
+      "where": "TRUE",
+      "score": 34.92,
+      "metrics": {
+        "score": 34.92,
+        "t2i_r1": 34.92,
+        "t2i_r5": 60.34,
+        "i2t_r1": 36.52,
+        "i2t_r5": 63.86,
+        "pretrained_t2i_r1": 36.96,
+        "train_rows": 20000
+      },
+      "rationale": "grid",
+      "rows": 100000
+    },
+    {
+      "name": "img_3",
+      "where": "width >= 200 AND height >= 200",
+      "score": 33.4,
+      "metrics": {
+        "score": 33.4,
+        "t2i_r1": 33.4,
+        "t2i_r5": 59.22,
+        "i2t_r1": 36.12,
+        "i2t_r5": 63.14,
+        "pretrained_t2i_r1": 36.96,
+        "train_rows": 20000
+      },
+      "rationale": "CLIP-based quality filtering hurt and dedup was neutral, so test an orthogonal signal \u2014 drop tiny/thumbnail-sized images (likely upscaled or junk, ~65k rows remain) \u2014 to see if low-resolution noise is what limits retrieval recall.",
+      "rows": 72997
+    },
+    {
+      "name": "img_5",
+      "where": "similarity > 0.3252",
+      "score": 32.94,
+      "metrics": {
+        "score": 32.94,
+        "t2i_r1": 32.94,
+        "t2i_r5": 58.6,
+        "i2t_r1": 36.08,
+        "i2t_r5": 62.78,
+        "pretrained_t2i_r1": 36.96,
+        "train_rows": 20000
+      },
+      "rationale": "CLIP, resolution, and dedup filters were neutral-to-harmful, so test the one untested signal alone \u2014 keep the top half by `similarity` (~50k rows) \u2014 to see whether it carries different information than CLIP score.",
+      "rows": 49984
+    },
+    {
+      "name": "img_1",
+      "where": "clip > 0.3434",
+      "score": 32.34,
+      "metrics": {
+        "score": 32.34,
+        "t2i_r1": 32.34,
+        "t2i_r5": 58.18,
+        "i2t_r1": 36.02,
+        "i2t_r5": 62.68,
+        "pretrained_t2i_r1": 36.96,
+        "train_rows": 20000
+      },
+      "rationale": "Test the single strongest known curation signal\u2014CLIP image-text alignment\u2014by keeping the top 50% (~50k rows, well above min_rows) before layering in dedup or aesthetic filters.",
+      "rows": 49989
+    },
+    {
+      "name": "img_4",
+      "where": "clip > 0.3741",
+      "score": 31.38,
+      "metrics": {
+        "score": 31.38,
+        "t2i_r1": 31.38,
+        "t2i_r5": 57.02,
+        "i2t_r1": 34.84,
+        "i2t_r5": 61.4,
+        "pretrained_t2i_r1": 36.96,
+        "train_rows": 20000
+      },
+      "rationale": "CLIP thresholding gave the biggest gain so far, so test whether pushing it from the top-50% to the top-25% (~25k rows, still above min_rows) improves score further before combining signals.",
+      "rows": 25024
+    }
+  ]
+}

@@ -1,0 +1,130 @@
+{
+  "budget": 8,
+  "arms": {
+    "random": "TRUE",
+    "top": "quality >= 3.25 AND lang = 'eng_Latn' AND NOT is_dup AND NOT is_near_dup",
+    "bottom": "quality < 2.68 AND lang = 'eng_Latn' AND NOT is_dup AND NOT is_near_dup"
+  },
+  "tree": [
+    {
+      "name": "trial_5",
+      "where": "quality >= 3.15 AND n_tokens >= 591",
+      "score": 6.5888,
+      "metrics": {
+        "score": 6.5888,
+        "val_all": 6.698,
+        "val_top": 6.5888,
+        "train_rows": 150000,
+        "seconds": 333,
+        "seed": 0
+      },
+      "rationale": "The mild token floor at 322 added a small gain on top of the top-quartile quality cut, so push the length filter much harder (median token count) while slightly relaxing quality to stay above the 150k row floor, testing whether longer documents are the stronger lever.",
+      "rows": 166885
+    },
+    {
+      "name": "trial_7",
+      "where": "quality >= 3.0 AND n_tokens >= 800",
+      "score": 6.596,
+      "metrics": {
+        "score": 6.596,
+        "val_all": 6.6892,
+        "val_top": 6.596,
+        "train_rows": 150000,
+        "seconds": 334,
+        "seed": 0
+      },
+      "rationale": "The length floor was the dominant lever in trial_5, so push it from 591 to 800 while relaxing quality just enough (3.15 \u2192 3.0) to stay safely above the 150k row floor (~180k rows estimated).",
+      "rows": 160522
+    },
+    {
+      "name": "trial_6",
+      "where": "n_tokens >= 1024",
+      "score": 6.6426,
+      "metrics": {
+        "score": 6.6426,
+        "val_all": 6.6904,
+        "val_top": 6.6426,
+        "train_rows": 150000,
+        "seconds": 335,
+        "seed": 0
+      },
+      "rationale": "Length appears to be the stronger lever than quality, so isolate it by keeping only the maximum-length (cap) documents with no quality filter (~245k rows) to see how much of trial_5's gain comes from length alone.",
+      "rows": 255385
+    },
+    {
+      "name": "trial_4",
+      "where": "quality >= 3.2617 AND n_tokens >= 322",
+      "score": 6.6482,
+      "metrics": {
+        "score": 6.6482,
+        "val_all": 6.7685,
+        "val_top": 6.6482,
+        "train_rows": 150000,
+        "seconds": 332,
+        "seed": 0
+      },
+      "rationale": "Quality thresholding has hit the row floor at 3.45, so hold the top-quartile quality cut from trial_2 as the baseline and test one new lever\u2014dropping the shortest quarter of documents by token count\u2014to see if length filtering adds signal beyond quality.",
+      "rows": 192908
+    },
+    {
+      "name": "trial_3",
+      "where": "quality >= 3.45",
+      "score": 6.6513,
+      "metrics": {
+        "score": 6.6513,
+        "val_all": 6.797,
+        "val_top": 6.6513,
+        "train_rows": 150000,
+        "seconds": 328,
+        "seed": 0
+      },
+      "rationale": "Quality gains kept scaling from the median to the top-quartile cut, so push the threshold to roughly the top 18% (~175k rows, still above min_rows) to find where the selectivity/diversity tradeoff turns.",
+      "rows": 153662
+    },
+    {
+      "name": "trial_2",
+      "where": "quality >= 3.2617",
+      "score": 6.6648,
+      "metrics": {
+        "score": 6.6648,
+        "val_all": 6.7886,
+        "val_top": 6.6648,
+        "train_rows": 150000,
+        "seconds": 328,
+        "seed": 0
+      },
+      "rationale": "Quality filtering helped at the median cut, so test a stricter top-quartile threshold (~245k rows, still above min_rows) to see whether the gain keeps scaling with selectivity.",
+      "rows": 245409
+    },
+    {
+      "name": "trial_1",
+      "where": "quality >= 2.918",
+      "score": 6.6776,
+      "metrics": {
+        "score": 6.6776,
+        "val_all": 6.7652,
+        "val_top": 6.6776,
+        "train_rows": 150000,
+        "seconds": 326,
+        "seed": 0
+      },
+      "rationale": "First test the single strongest lever\u2014document quality\u2014by keeping the top half of the quality distribution (~490k rows, well above min_rows) to learn the sign of the quality/score relationship.",
+      "rows": 489668
+    },
+    {
+      "name": "trial_0",
+      "where": "TRUE",
+      "score": 6.7,
+      "metrics": {
+        "score": 6.7,
+        "val_all": 6.7512,
+        "val_top": 6.7,
+        "train_rows": 150000,
+        "seconds": 328,
+        "seed": 0
+      },
+      "rationale": "grid",
+      "rows": 979960
+    }
+  ]
+}
