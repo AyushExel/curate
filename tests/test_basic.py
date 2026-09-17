@@ -50,6 +50,9 @@ def test_signal_filter_sample_tag(tmp_path):
     again = curate.load(str(tmp_path / "t.lance"), tag="v1")
     assert len(again) == 4 and again.where == s.where
     assert [st["op"] for st in again.recipe["steps"]][-2:] == ["sample", "filter"]
+    prov = again.recipe["columns"]
+    assert prov["n_words"]["signal"] == "length" and prov["n_words"]["inputs"] == ["text"]
+    assert prov["is_dup"]["op"] == "dedup" and prov["sample_4"]["seed"] == 1
 
     st = ds.stats(["n_words", "is_dup"])
     assert st["rows"] == 40 and st["is_dup"]["true"] == 30

@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 import time
 
@@ -48,7 +49,15 @@ def write_signal(uri, name, sig, where=None, engine=None, concurrency=None) -> d
         _local(ds, name, sig, where)
     dt = time.perf_counter() - t0
     log(f"signal {name} <- {sig!r}: {n:,} rows in {dt:,.1f}s ({n / max(dt, 1e-9):,.0f} rows/s, {engine})")
-    return {"rows": n, "seconds": round(dt, 2), "engine": engine}
+    info = {**sig.describe(), "rows": n, "seconds": round(dt, 2), "engine": engine, "where": where}
+    annotate(lance.dataset(uri), name, info)
+    return info
+
+
+def annotate(ds: lance.LanceDataset, name: str, info: dict) -> None:
+    """Record how a column was made in its Lance field metadata, so the table
+    itself carries the provenance (readable from any view, any client)."""
+    ds.update_field_metadata({name: {"curate": json.dumps(info, default=str)}})
 
 
 def merge_columns(ds: lance.LanceDataset, rowaddrs: pa.Array, **columns: pa.Array) -> None:

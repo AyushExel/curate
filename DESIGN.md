@@ -31,9 +31,9 @@ That observation is the whole design. Curation reduces to four verbs, and each m
 | **signal** | compute a per-row (or per-episode) value | new column, zero-copy `add_columns` / Geneva `backfill` |
 | **filter** | keep rows that satisfy a rule | SQL `where` clause, lazy |
 | **select** | dedup, sample, stratify | another column (`is_dup`, `sample_1m`) plus a filter |
-| **tag** | freeze a dataset for training | Lance table version + tag, recipe stored in tag metadata |
+| **tag** | freeze a dataset for training | Lance table version + tag, recipe in tag metadata, per-column provenance in field metadata |
 
-Nothing is ever copied. A curated dataset is `(table uri, version, where)`. That triple is the recipe, it is fully reproducible, and it is small enough to paste into a paper.
+Nothing is ever copied. A curated dataset is `(table uri, version, where)`. That triple is the recipe, it is fully reproducible, and it is small enough to paste into a paper. How each column was made (which signal, which model, which rows, how long) lives in that column's Lance field metadata, so the table carries its own provenance and any view, any client, any later session can read it.
 
 Because every modality is just a Lance table with different column types (string, binary image, blob video, fixed-size-list action), the same four verbs work for LLM pretraining text, image-caption pairs, video generation clips, robot episodes and world-model frame streams. Only the signal library is modality specific.
 
@@ -62,7 +62,8 @@ sub = clean.sample(1_000_000, seed=0)               # writes a bool column, retu
 
 # 4. freeze and hand to training
 sub.tag("fineweb-1m-v1")
-sub.recipe                                          # {'uri': ..., 'version': 71, 'where': "...", 'steps': [...]}
+sub.recipe                                          # {'uri', 'version': 71, 'where': "...", 'steps': [...], 'columns': {...}}
+sub.recipe["columns"]["quality"]                    # {'signal': 'quality', 'inputs': ['text'], 'model_name': ..., 'rows': ..., 'seconds': ..., 'engine': 'geneva'}
 sub.stats()                                         # counts and histograms of every signal column
 loader = sub.torch(columns=["input_ids"], batch_size=32)   # lancedb StreamingDataset: shuffled, resumable, multi-rank
 ```
@@ -170,7 +171,7 @@ Every design decision above leans on something the format already does:
 - Geneva `backfill` is a checkpointed job that skips rows already computed and takes a `where` filter, so recomputing after a crash or a new filter is incremental.
 - Blob columns hold video and images next to the metadata. `openvid-lance` is 7.5 TB with the clips inline; a signal that decodes 8 frames per clip reads exactly those bytes.
 - Row addresses are stable within a version, so selection columns (`is_dup`, `sample_1m`) can be computed on the driver and merged in by `_rowaddr` without a join key.
-- Versions and tags are built in. The recipe rides along in tag metadata.
+- Versions and tags are built in. The recipe rides along in tag metadata; each column's provenance rides along in field metadata.
 - `lancedb.streaming.StreamingDataset` takes the same `where` string, so the curated view is the training set with no export step.
 - `hf://`, `s3://`, `gs://` and local paths are all just URIs.
 

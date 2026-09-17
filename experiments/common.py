@@ -15,9 +15,9 @@ def save(name: str, obj: dict) -> None:
     print(f"saved {path}")
 
 
-def timings(ds) -> list[dict]:
-    keys = ("op", "name", "rows", "seconds", "engine", "dups", "clusters")
-    return [{k: s[k] for k in keys if k in s} for s in ds.steps]
+def timings(ds) -> dict:
+    keys = ("signal", "op", "rows", "seconds", "engine", "dups", "clusters", "groups")
+    return {name: {k: v[k] for k in keys if k in v} for name, v in ds.provenance().items()}
 
 
 def spearman(a, b) -> float:

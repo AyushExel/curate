@@ -24,7 +24,7 @@ sys.path.insert(0, "/ephemeral/curate/training/examples/llm_pretraining")
 from model import GPT, GPTConfig  # noqa: E402
 
 SEQ, BATCH, STEPS, DOCS = 1024, 32, 3000, 150_000
-CLEAN = "lang = 'eng_Latn' AND quality >= 2.5 AND NOT contaminated AND NOT is_dup AND NOT is_near_dup"
+CLEAN = "quality >= 3.25 AND lang = 'eng_Latn' AND NOT is_dup AND NOT is_near_dup"  # top quartile of the edu score
 PAD = 50257  # one past gpt2 vocab, masked from the loss
 
 

@@ -11,7 +11,7 @@ import pyarrow as pa
 import pyarrow.compute as pc
 
 from . import dedup as _dedup
-from .engine import log, merge_columns, write_signal
+from .engine import annotate, log, merge_columns, write_signal
 from .signal import Signal
 
 
@@ -79,8 +79,7 @@ class Dataset:
                     log(f"signal {name}: column exists and is complete, skipping (drop it to recompute)")
                     continue
                 log(f"signal {name}: column exists, {missing:,} rows still null, resuming")
-            info = write_signal(self.uri, name, sig, where=where, engine=engine, concurrency=concurrency)
-            self.steps.append({"op": "signal", "name": name, **sig.describe(), **info})
+            write_signal(self.uri, name, sig, where=where, engine=engine, concurrency=concurrency)
             self._reopen()
         return self
 
@@ -102,7 +101,8 @@ class Dataset:
             log(f"dedup {column} exact: {info['dups']:,} of {info['rows']:,} rows flagged")
         else:
             info = _dedup.semantic(self._ds, column, self.where, name, threshold, **kw)
-        self.steps.append({"op": "dedup", "column": column, "name": name, **info})
+        annotate(self._ds, name, {"op": "dedup", "column": column, "where": self.where, **info})
+        self.steps.append({"op": "dedup", "name": name})
         self._reopen()
         return self.filter(f"NOT {name}")
 
@@ -130,7 +130,8 @@ class Dataset:
         keep[pick] = True
         merge_columns(self._ds, t.column("_rowaddr"), **{name: pa.array(keep)})
         log(f"sample {name}: kept {int(keep.sum()):,} of {m:,} rows" + (f" (stratified by {by})" if by else ""))
-        self.steps.append({"op": "sample", "name": name, "n": n, "seed": seed, "by": by})
+        annotate(self._ds, name, {"op": "sample", "n": n, "seed": seed, "by": by, "where": self.where})
+        self.steps.append({"op": "sample", "name": name})
         self._reopen()
         return self.filter(name)
 
@@ -148,7 +149,16 @@ class Dataset:
     # ---- reproducibility -------------------------------------------------
     @property
     def recipe(self) -> dict:
-        return {"uri": self.uri, "version": self.version, "where": self.where, "steps": self.steps}
+        """Everything needed to rebuild this view: the table version, the where,
+        the lineage of this view, and how every curate-made column was computed."""
+        return {"uri": self.uri, "version": self.version, "where": self.where, "steps": self.steps, "columns": self.provenance()}
+
+    def provenance(self) -> dict:
+        out = {}
+        for f in self.schema:
+            if f.metadata and b"curate" in f.metadata:
+                out[f.name] = json.loads(f.metadata[b"curate"])
+        return out
 
     def tag(self, name: str) -> dict:
         """Freeze this view: a Lance tag on the current version with the recipe in its
@@ -237,7 +247,7 @@ class Grouped:
             per_row = pa.array(np.repeat(np.asarray(vals), sizes)).cast(sig.out_type)
             merge_columns(self.ds._ds, t.column("_rowaddr"), **{name: per_row})
             log(f"signal {name} <- {sig!r}: {len(starts):,} groups, {len(keys):,} rows")
-            self.ds.steps.append({"op": "group_signal", "key": self.key, "name": name, **sig.describe()})
+            annotate(self.ds._ds, name, {**sig.describe(), "group": self.key, "order": self.order, "rows": len(keys), "groups": len(starts), "where": self.ds.where})
             self.ds._reopen()
         return self
 
