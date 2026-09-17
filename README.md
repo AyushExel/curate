@@ -2,15 +2,13 @@
 
 ## The problem
 
-Every serious training run today starts with a curation pipeline someone wrote by hand. It is a pile of scripts that read a dataset, compute some scores, write a filtered copy, compute more scores on the copy, write another copy. Three weeks later nobody can say which copy the model was trained on or which filters produced it. Every new signal means another full pass and another copy. Every modality (text, images, video, robot episodes) gets its own pile.
+Every serious training run today starts with a curation pipeline someone wrote by hand. Every modality (text, images, video, robot episodes) gets its own pile.
 
 The tooling available does not fix this:
 
-- NeMo Curator (NVIDIA, open source) is a stage-and-executor system. You pick an executor, declare CPU/GPU/memory per stage, and each modality has its own stage classes. It is powerful but it is infrastructure, not something a researcher picks up in an afternoon.
-- DataSmith (DatologyAI) is the most interesting recent work: an agent that runs the data research loop, proposing interventions, training, diagnosing, and trying again. But it is closed, text only, and the thing that makes it work is the layer underneath it: a "curation environment" with profiling, filtering, dedup and decontamination as callable operations plus a persistent experiment tree. That layer is what the open ecosystem is missing.
+- NeMo Curator (NVIDIA, open source) is a stage-and-executor system. You pick an executor, declare CPU/GPU/memory per stage, and each modality has its own stage classes. It is powerful but not easy to pick up.
 - datatrove, dolma and friends are text pipelines that write new files at every step.
 
-What a researcher actually wants is what Ultralytics gave computer vision: one object, a handful of verbs, sensible defaults, and the option to go deep when needed.
 
  Curation reduces to four verbs, and each maps onto a Lance offering:
 
