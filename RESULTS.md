@@ -42,16 +42,22 @@ Geneva's fixed cost is 10-15 s of Ray startup per backfill. For CPU signals the 
 
 Design consequence: the `auto` engine default is right for CPU signals and for tables with many fragments, and harmless for GPU signals, but the win is bounded by the signal itself.
 
-### Downstream: same small GPT, top-quartile quality vs random
+### Downstream: same small GPT on random / top-quartile / bottom-quartile quality
 
-Setup (`experiments/text_train.py`): GPT-2 tokenizer (a `text.tokenize` signal, 1M docs, Geneva), a deterministic 2% held-out split as a bool signal (`crc32(id) % 50 == 0`), then two 150k-doc training sets as `sample()` columns: `train_random` from all training docs, `train_clean` from `quality >= 3.25 AND eng_Latn AND no dups` (the top quartile of the edu score, 245k docs). Same model (8 layers, 512 wide, 35M params), same 3,000 steps of 32 x 1024, same 98M tokens, same seed, one H100 each, 5 minutes per run.
+Setup (`experiments/text_train.py arms --seeds 0 1`): GPT-2 tokenizer as a `text.tokenize` signal (1M docs, Geneva), a deterministic 2% held-out split as a bool signal (`crc32(id) % 50 == 0`), then for each arm and seed a 150k-doc training set written as a `sample()` column. Same model (8 layers, 512 wide, 35M params), 3,000 steps of 32 x 1024 = 98M tokens, one H100, 5.4 minutes per run. Two evals: `val_all` (2% of everything) and `val_top` (the held-out top quartile, `quality >= 3.25`), 100 batches each.
 
-| Training set | val_all (2% of everything) | val_clean (held-out top quartile) |
-|---|---|---|
-| `train_random` | **6.744** | 6.700 |
-| `train_clean` | 6.778 | **6.670** |
+| Training set (`where`) | seed | val_top | val_all |
+|---|---|---|---|
+| random (`TRUE`) | 0 | 6.714 | 6.764 |
+| random | 1 | 6.647 | 6.702 |
+| top quartile (`quality >= 3.25` + eng + no dups) | 0 | **6.648** | 6.768 |
+| top quartile | 1 | **6.598** | 6.727 |
+| bottom quartile (`quality < 2.68` + eng + no dups) | 0 | 6.762 | 6.764 |
+| bottom quartile | 1 | 6.740 | 6.745 |
 
-Training on the quality-filtered quartile lowers loss on high-quality held-out text (-0.030) and raises it on the raw distribution (+0.034). That is the textbook shape of a quality filter, at a size (35M params, 98M tokens, one seed) where it is a directional check, not a claim. The point of the exercise is the workflow: every training set is a bool column, every eval set is a `where`, and both runs read the same table at the same version.
+Paired by seed, top minus random on `val_top` is -0.065 and -0.049; bottom minus random is +0.048 and +0.093. The ordering top < random < bottom holds at both seeds and spans ~0.11 nats, while seed-to-seed noise on the same arm is ~0.02 to 0.07. On `val_all` the unfiltered set is as good as or better than either filtered one (top: +0.004, +0.025; bottom: 0.000, +0.043). So: the quality signal orders training sets on the target distribution, and filtering costs you on the raw one. That is the trade a curation recipe makes, and here it is measured rather than assumed.
+
+Caveat that matters: my first cut of this experiment used one seed and reported a 0.030 gap. Seed noise on the random arm alone turned out to be 0.067. One seed is not an ablation; paired seeds with a bottom arm are the minimum.
 
 Loader bug found on the way: `Dataset.torch()` (lancedb 0.38.0 `StreamingDataset`) panicked on this table in `dataloader/permutation/builder.rs:230` with `SchemaError("target schema is not superset of current schema ...")`, with or without a filter or shuffle, and on every table exported from it. Bisecting fresh tables cleared row-address merges, field metadata, dropped columns and tags; the trigger is **schema-level metadata**. The fineweb-edu Lance table carries a `huggingface` key in its schema metadata from the Parquet conversion (as any HF-converted dataset will), and the permutation builder cannot handle it. Stripping it is a metadata-only commit (`lance.dataset(uri).replace_schema_metadata({})`, no data rewrite) and streaming works again. `torch()` now raises a clear error with that one-liner instead of a Rust panic, and `export()` no longer copies table-level metadata. Worth a lancedb issue: any Hub dataset converted with `datasets` hits it. The ablation itself used a 12-line in-memory loader; the subsets fit in RAM.
 
@@ -72,6 +78,24 @@ Findings:
 - Our `clip_score` and LAION's shipped `similarity` correlate at Spearman 0.47. LAION scored with OpenAI's ViT-B/32; we used the laion2b checkpoint of the same architecture. The two disagree enough that "which CLIP" has to be part of the recipe, which is exactly what the column's provenance metadata records (`model_name`, `pretrained`).
 - The shipped `NSFW` column contains stray hashes and the string `'False'` in a handful of rows; a `NSFW = 'UNLIKELY'` filter handles that for free, which is a small argument for SQL over a Python predicate.
 - One truncated JPEG in 100k killed the first run. Signals now decode defensively (grey image on failure); a `decode_ok` boolean signal would be the honest version.
+
+### Downstream: fine-tune CLIP on random vs a hand-picked curated view (DataComp-style)
+
+Setup (`experiments/image_train.py`): 20k pairs as a `sample()` column from (a) all rows and (b) `NOT is_dup AND clip >= 0.28 AND aesthetic >= 4.5 AND res >= 200 AND NSFW = 'UNLIKELY'` (44k-row pool). Fine-tune open_clip ViT-B/32 (laion2b) for 2 epochs, batch 128, lr 1e-5, symmetric InfoNCE, then zero-shot retrieval on COCO-2017 val (5k images, first caption). Two seeds, ~4 minutes per run.
+
+| Training pairs | seed | t2i R@1 | t2i R@5 | i2t R@1 | i2t R@5 |
+|---|---|---|---|---|---|
+| pretrained, no fine-tune | | 36.96 | 62.58 | 37.52 | 64.70 |
+| random 20k | 0 | 34.92 | 60.34 | 36.52 | 63.86 |
+| random 20k | 1 | 34.40 | 60.36 | 37.16 | 64.28 |
+| curated 20k | 0 | 33.64 | 60.08 | 36.40 | 63.36 |
+| curated 20k | 1 | 34.20 | 60.34 | 36.08 | 62.66 |
+
+Findings:
+
+- Fine-tuning a converged CLIP on 20k LAION pairs hurts COCO retrieval by 2-3 R@1 points regardless of the pairs, and my hand-picked curated recipe is not better than random (paired by seed: -1.28 and -0.20 on t2i R@1). A negative result, reported as one.
+- Two likely reasons, both instructive. Selecting pairs by the score of the very model being trained (our `clip` is ViT-B/32) keeps the pairs it already agrees with and throws away the ones it could learn from; DataComp notes the same bias. And `aesthetic >= 4.5` shifts the training pool away from COCO's everyday photos.
+- The honest reading is that a curation recipe is a hypothesis to test, not a setting to assume. The image loop below turns that around: the same objective, the recipe chosen by search.
 
 ## Video: openvid, 3k clips (inline mp4 blobs, ~3 s each, 720p)
 

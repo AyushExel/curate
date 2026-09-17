@@ -45,7 +45,13 @@ class Loop:
         self.min_rows, self.minimize, self.prefix = min_rows, minimize, prefix
 
     def context(self) -> dict:
-        return {"rows": len(self.ds), "base_where": self.ds.where, "min_rows": self.min_rows, "stats": self.ds.stats(self.columns)}
+        return {
+            "rows": len(self.ds),
+            "base_where": self.ds.where,
+            "min_rows": self.min_rows,
+            "objective": "minimize score" if self.minimize else "maximize score",
+            "stats": self.ds.stats(self.columns),
+        }
 
     def tree(self) -> list[Trial]:
         out = []
@@ -88,7 +94,7 @@ class ClaudeProposer:
         "You run a data-curation research loop. A training set is a SQL WHERE clause over the columns "
         "described in `stats` (Lance/DataFusion SQL: AND, OR, NOT, comparisons, IS NULL, string equality). "
         "Every trial trains the same model with the same compute on a fixed-size random sample of the rows "
-        "your WHERE keeps, then reports `score` (lower is better). Propose the next WHERE to beat the best "
+        "your WHERE keeps, then reports `score` (`context.objective` says whether lower or higher is better). Propose the next WHERE to beat the best "
         "score. Use only the listed columns. Keep at least `min_rows` rows (use the quantiles to estimate). "
         "Never repeat a tried WHERE. Prefer testing one idea at a time so results are interpretable. "
         'Reply with JSON only: {"where": "...", "rationale": "one sentence"} or {"stop": true, "rationale": "..."}.'
