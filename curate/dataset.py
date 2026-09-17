@@ -197,11 +197,20 @@ class Dataset:
         """lancedb.streaming.StreamingDataset over this view: shuffled, resumable, rank-aware."""
         from lancedb.streaming import StreamingDataset
 
+        if self.schema.metadata:
+            # lancedb 0.38.0's permutation builder panics on tables with schema-level
+            # metadata (any HuggingFace-converted table has a 'huggingface' key)
+            raise RuntimeError(
+                f"{self.uri} has schema-level metadata {list(self.schema.metadata)}, which crashes "
+                "StreamingDataset in lancedb 0.38.0. Strip it (metadata-only commit, no data rewrite): "
+                "lance.dataset(uri).replace_schema_metadata({})"
+            )
         return StreamingDataset(self._lancedb(), columns=columns, filter=self.where, **kw)
 
     def export(self, path: str, columns=None) -> "Dataset":
         sc = self._ds.scanner(columns=columns, filter=self.where)
-        lance.write_dataset(sc.to_batches(), path, schema=sc.projected_schema, mode="overwrite")
+        # keep field metadata (column provenance), drop table-level metadata (see torch())
+        lance.write_dataset(sc.to_batches(), path, schema=sc.projected_schema.remove_metadata(), mode="overwrite")
         return Dataset(path, steps=self.steps + [{"op": "export", "from": self.recipe}])
 
     # ---- internals -----------------------------------------------------------
